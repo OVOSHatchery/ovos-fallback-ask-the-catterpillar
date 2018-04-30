@@ -2,6 +2,8 @@
 
 Harm Reduction chatbot
 
+![img](https://www.askthecaterpillar.com/img/caterpillar.jpg)
+
 ## Description
 
 [Ask The Caterpillar](https://www.askthecaterpillar.com/) is a harm reduction chatbot that allows people easy access to information about substances so that they can make informed choices.
