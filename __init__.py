@@ -92,7 +92,7 @@ class AskTheCaterpillarSkill(FallbackSkill):
         LOG.info(str(report))
         self.set_context("url", trip_report["url"])
         self.set_context("substance", trip_report["substance"])
-        self.speak(report["name"])
+        self.speak(report["name"] + ". by " + report["author"])
         self.speak_dialog("trip_report", {"substance": trip_report["substance"]})
         # TODO split speech in chunks for better TTS
         self.speak(report["experience"])
@@ -169,7 +169,7 @@ class AskTheCaterpillarSkill(FallbackSkill):
         else:
             substance = sub
         reports = Erowid.search_reports(substance)
-        report = random.choice(reports)
+        report = random.choice(reports[:15])
         self.speak_report(report)
 
     @intent_handler(IntentBuilder('RandomTripReport').require('random').require('trip_report'))
