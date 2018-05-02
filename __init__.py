@@ -8,9 +8,9 @@ import random
 __author__ = "jarbasAI"
 
 
-class AskTheCatterpillarSkill(FallbackSkill):
+class AskTheCaterpillarSkill(FallbackSkill):
     def __init__(self):
-        super(AskTheCatterpillarSkill, self).__init__()
+        super(AskTheCaterpillarSkill, self).__init__()
         self.caterpillar = AskTheCaterpillar()
         self.wiki = PsychonautWiki()
         self.chemicals = {}
@@ -92,7 +92,7 @@ class AskTheCatterpillarSkill(FallbackSkill):
         LOG.info(str(report))
         self.set_context("url", trip_report["url"])
         self.set_context("substance", trip_report["substance"])
-
+        self.speak(report["name"])
         self.speak_dialog("trip_report", {"substance": trip_report["substance"]})
         # TODO split speech in chunks for better TTS
         self.speak(report["experience"])
@@ -204,5 +204,5 @@ class AskTheCatterpillarSkill(FallbackSkill):
 
 
 def create_skill():
-    return AskTheCatterpillarSkill()
+    return AskTheCaterpillarSkill()
 
