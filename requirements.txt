@@ -1,1 +1,1 @@
-pysychonaut>=0.4.2
+pysychonaut>=0.4.5
