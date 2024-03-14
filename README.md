@@ -1,7 +1,5 @@
 ## Ask the Caterpillar
 
-THE API STOPPED WORKING, NOTHING TO SEE HERE
-
 
 Harm Reduction chatbot
 

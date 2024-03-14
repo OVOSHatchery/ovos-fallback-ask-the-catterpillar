@@ -1,16 +1,20 @@
-from mycroft import FallbackSkill, intent_file_handler, intent_handler
-from mycroft.util.parse import match_one
-from mycroft.util.log import LOG
-from adapt.intent import IntentBuilder
-from pysychonaut import AskTheCaterpillar, Erowid, PsychonautWiki
 import random
+
+from ovos_utils.log import LOG
+from ovos_utils.parse import match_one
+from ovos_workshop.decorators import intent_handler
+from ovos_workshop.intents import IntentBuilder
+from ovos_workshop.skills.fallback import FallbackSkill
+from pysychonaut import AskTheCaterpillar, Erowid, PsychonautWiki
+from quebra_frases import sentence_tokenize
 
 __author__ = "jarbasAI"
 
 
 class AskTheCaterpillarSkill(FallbackSkill):
-    def __init__(self):
-        super(AskTheCaterpillarSkill, self).__init__()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.caterpillar = AskTheCaterpillar()
         self.wiki = PsychonautWiki()
         self.chemicals = {}
@@ -28,7 +32,7 @@ class AskTheCaterpillarSkill(FallbackSkill):
         # correct drug name slang
         sub = self.caterpillar.fix_substance_names(text)
         if not sub:
-            LOG.warn("probable bad substance name")
+            LOG.warning("probable bad substance name")
         else:
             text = sub
 
@@ -93,13 +97,15 @@ class AskTheCaterpillarSkill(FallbackSkill):
         self.set_context("url", trip_report["url"])
         self.set_context("substance", trip_report["substance"])
         self.speak(report["name"] + ". by " + report["author"])
-        self.speak_dialog("trip_report", {"substance": trip_report["substance"]})
-        # TODO split speech in chunks for better TTS
-        self.speak(report["experience"])
+        self.speak_dialog("trip_report",
+                          {"substance": trip_report["substance"]})
+
+        for sent in sentence_tokenize(report["experience"]):
+            self.speak(sent)
 
     def initialize(self):
         # register generic fallback for drug questions
-        self.register_fallback(self.handle_fallback, 50)
+        self.register_fallback(self.handle_fallback, 70)
 
         # generate vocabulary for substances
         for categorie in self.categories:
@@ -117,18 +123,9 @@ class AskTheCaterpillarSkill(FallbackSkill):
             substance = self.caterpillar.drug_slang[key]
             self.register_vocabulary(substance.lower(), "substance")
 
-    def handle_fallback(self, message):
-        utterance = message.data.get("utterance", "").lower()
-        utterance = self.caterpillar.fix_substance_names(utterance)
-        if utterance:
-            self.speak(self.caterpillar.ask_the_caterpillar(utterance))
-            substance = self.wiki.extract_substance_name(utterance)
-            if substance:
-                self.set_context("substance", substance)
-            return True
-        return False
-
-    @intent_handler(IntentBuilder("MoreSubstanceInfo").require("more").require("substance"))
+    @intent_handler(
+        IntentBuilder("MoreSubstanceInfo").require("more").require(
+            "substance"))
     def handle_more_substance_info(self, message):
         substance = message.data["substance"]
 
@@ -152,15 +149,20 @@ class AskTheCaterpillarSkill(FallbackSkill):
             self.speak_dialog("bad_drug")
             return
 
-        self.speak_dialog("substance_info",
-                          {"substance": data["name"],
-                           "other_names": data["other_names"],
-                           "effects": data["effects"]})
+        self.speak_dialog(
+            "substance_info", {
+                "substance": data["name"],
+                "other_names": data["other_names"],
+                "effects": data["effects"]
+            })
 
-    @intent_handler(IntentBuilder("TripReport").require("trip_report").require("substance").optionally("categorie"))
+    @intent_handler(
+        IntentBuilder("TripReport").require("trip_report").require(
+            "substance").optionally("categorie"))
     def handle_search_trip_report(self, message):
         if message.data.get("categorie"):
-            substance = random.choice(self.categories[message.data["categorie"]])
+            substance = random.choice(
+                self.categories[message.data["categorie"]])
         else:
             substance = message.data["substance"]
         sub = self.wiki.extract_substance_name(substance)
@@ -172,37 +174,49 @@ class AskTheCaterpillarSkill(FallbackSkill):
         report = random.choice(reports[:15])
         self.speak_report(report)
 
-    @intent_handler(IntentBuilder('RandomTripReport').require('random').require('trip_report'))
+    @intent_handler(
+        IntentBuilder('RandomTripReport').require('random').require(
+            'trip_report'))
     def handle_random_trip_report(self, message):
         trip_report = Erowid.random_experience()
         self.speak_report(trip_report)
 
-    @intent_handler(IntentBuilder('WhatisErowid').require('What').require('Erowid'))
+    @intent_handler(
+        IntentBuilder('WhatisErowid').require('What').require('Erowid'))
     def handle_what_erowid(self, message):
         self.speak_dialog("what_erowid")
 
-    @intent_handler(IntentBuilder('ErowidMission').optionally('What').require('Erowid').require("mission"))
+    @intent_handler(
+        IntentBuilder('ErowidMission').optionally('What').require(
+            'Erowid').require("mission"))
     def handle_mission_erowid(self, message):
         self.speak_dialog("erowid_mission")
 
-    @intent_handler(IntentBuilder('WhatisHarmReduction').require('What').require('HarmReduction'))
+    @intent_handler(
+        IntentBuilder('WhatisHarmReduction').require('What').require(
+            'HarmReduction'))
     def handle_what_HR(self, message):
         self.speak_dialog("what_harm_reduction")
 
-    @intent_handler(IntentBuilder('WhatisAskCaterpillar').require('What').require('AskTheCaterpillar'))
-    @intent_handler(IntentBuilder('WhatisAskCaterpillar2').optionally('What').require('AskTheCaterpillar').require("mission"))
-    def handle_what_caterpillar(self, message):
-        self.speak_dialog("what_caterpillar")
+    def handle_fallback(self, message):
+        utterance = message.data.get("utterance", "").lower()
+        utterance = self.caterpillar.fix_substance_names(utterance)
+        if utterance:
+            substance = self.wiki.extract_substance_name(utterance)
+            if substance:
+                self.set_context("substance", substance)
+                message.data["substance"] = substance
+                self.handle_substance_info(message)
+                return True
+        return False
 
     @intent_handler(IntentBuilder('AskCaterpillar').require('AskTheCaterpillar'))
     def handle_ask_caterpillar(self, message):
         query = message.utterance_remainder()
-        self.speak(self.caterpillar.ask_the_caterpillar(query))
         substance = self.wiki.extract_substance_name(query)
         if substance:
             self.set_context("substance", substance)
-
-
-def create_skill():
-    return AskTheCaterpillarSkill()
-
+            message.data["substance"] = substance
+            self.handle_substance_info(message)
+        else:
+            self.speak_dialog("bad_drug")
